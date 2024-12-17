@@ -1,0 +1,98 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    extends:
+      file: common-config.yaml
+      service: network-deploy-service
+
+  configServer:
+    image: "vikum92/config-server:s6"
+    container_name: configServer
+    ports:
+      - "8071:8071"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8071/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    extends:
+      file: common-config.yaml
+      service: microservice-base-config
+
+  account:
+    image: "vikum92/account:s6"
+    container_name: account
+    ports:
+      - "8080:8080"
+    depends_on:
+      configServer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    networks:
+      - microservice
+    environment:
+      SPRING_APPLICATION_NAME: "account"
+    extends:
+      file: common-config.yaml
+      service: microservice-configserver-config
+
+  card:
+    image: "vikum92/card:s6"
+    container_name: card
+    ports:
+      - "8081:8081"
+    depends_on:
+      configServer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    networks:
+      - microservice
+    environment:
+      SPRING_APPLICATION_NAME: "card"
+    extends:
+      file: common-config.yaml
+      service: microservice-configserver-config
+
+  loan:
+    image: "vikum92/loan:s6"
+    container_name: loan
+    ports:
+      - "8082:8082"
+    depends_on:
+      configServer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    networks:
+      - microservice
+    environment:
+      SPRING_APPLICATION_NAME: "loan"
+    extends:
+      file: common-config.yaml
+      service: microservice-configserver-config
+
+networks:
+  microservice:
+    driver: bridge
