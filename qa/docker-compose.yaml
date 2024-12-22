@@ -6,7 +6,7 @@ services:
       service: microservice-db-config
 
   configServer:
-    image: "vikum92/config-server:s7"
+    image: "vikum92/config-server:s8"
     container_name: configServer
     ports:
       - "8071:8071"
@@ -23,13 +23,35 @@ services:
       file: common-config.yaml
       service: microservice-base-config
 
+  eurekaServer:
+    image: "eazybytes/eureka-server:s8"
+    container_name: eurekaServer
+    ports:
+      - "8070:8070"
+    depends_on:
+      configserver:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8070/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    extends:
+      file: common-config.yaml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: "eurekaServer"
+
   account:
-    image: "vikum92/account:s7"
+    image: "vikum92/account:s8"
     container_name: account
     ports:
       - "8080:8080"
     depends_on:
       configServer:
+        condition: service_healthy
+      eurekaServer:
         condition: service_healthy
     deploy:
       resources:
@@ -41,15 +63,17 @@ services:
       SPRING_APPLICATION_NAME: "account"
     extends:
       file: common-config.yaml
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
   card:
-    image: "vikum92/card:s7"
+    image: "vikum92/card:s8"
     container_name: card
     ports:
       - "8081:8081"
     depends_on:
       configServer:
+        condition: service_healthy
+      eurekaServer:
         condition: service_healthy
     deploy:
       resources:
@@ -61,15 +85,17 @@ services:
       SPRING_APPLICATION_NAME: "card"
     extends:
       file: common-config.yaml
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
   loan:
-    image: "vikum92/loan:s7"
+    image: "vikum92/loan:s8"
     container_name: loan
     ports:
       - "8082:8082"
     depends_on:
       configServer:
+        condition: service_healthy
+      eurekaServer:
         condition: service_healthy
     deploy:
       resources:
@@ -81,7 +107,7 @@ services:
       SPRING_APPLICATION_NAME: "loan"
     extends:
       file: common-config.yaml
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
 networks:
   microservice:
