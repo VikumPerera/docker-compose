@@ -1,4 +1,26 @@
 services:
+
+  kafka:
+    image: docker.io/bitnami/kafka:3.9
+    ports:
+      - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      # KRaft settings
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      # Listeners
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+    extends:
+      file: common-config.yaml
+      service: network-deploy-service
+
   rabbit:
     image: rabbitmq:3.13-management
     hostname: rabbitmq
@@ -263,7 +285,7 @@ services:
       service: network-deploy-service
 
   configServer:
-    image: "vikum92/config-server:s13"
+    image: "vikum92/config-server:s14"
     container_name: configServer
     ports:
       - "8071:8071"
@@ -284,7 +306,7 @@ services:
 
 
   eurekaServer:
-    image: "vikum92/eureka-server:s13"
+    image: "vikum92/eureka-server:s14"
     container_name: eurekaServer
     ports:
       - "8070:8070"
@@ -305,7 +327,7 @@ services:
       OTEL_SERVICE_NAME: "eurekaServer"
 
   account:
-    image: "vikum92/account:s13"
+    image: "vikum92/account:s14"
     container_name: account
     depends_on:
       configServer:
@@ -330,12 +352,13 @@ services:
       SPRING_APPLICATION_NAME: "account"
       OTEL_SERVICE_NAME: "account"
       SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: "kafka:9092"
     extends:
       file: common-config.yaml
       service: microservice-eureka-config
 
   card:
-    image: "vikum92/card:s13"
+    image: "vikum92/card:s14"
     container_name: card
     depends_on:
       configServer:
@@ -362,7 +385,7 @@ services:
       service: microservice-eureka-config
 
   loan:
-    image: "vikum92/loan:s13"
+    image: "vikum92/loan:s14"
     container_name: loan
     depends_on:
       configServer:
@@ -389,19 +412,20 @@ services:
       service: microservice-eureka-config
 
   message:
-    image: "eazybytes/message:s13"
-    container_name: message-ms
+    image: "vikum92/message:s14"
+    container_name: message
     depends_on:
       rabbit:
         condition: service_healthy
     environment:
       SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: "kafka:9092"
     extends:
       file: common-config.yaml
       service: network-deploy-service
 
   gatewayServer:
-    image: "vikum92/gateway-server:s13"
+    image: "vikum92/gateway-server:s14"
     container_name: gatewayServer
     ports:
       - "8072:8072"
@@ -425,6 +449,10 @@ services:
     extends:
       file: common-config.yaml
       service: microservice-eureka-config
+
+volumes:
+  kafka_data:
+    driver: local
 
 networks:
   microservice:
